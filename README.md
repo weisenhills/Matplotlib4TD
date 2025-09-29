@@ -13,6 +13,9 @@ This project allows TouchDesigner users to:
 ![TouchDesigner Interface](images/touchdesigner-interface.png)
 *The TouchDesigner interface showing the matplotlib plotting system in action - CHOP data from the 'source' node is processed through the plotting system and displayed in the 'plot_in' Movie File In TOP*
 
+![Project Title](./title.png)
+
+
 ## 🔧 Prerequisites
 
 - **TouchDesigner 2025** (build 30770 or compatible)
