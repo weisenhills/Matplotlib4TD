@@ -1,0 +1,80 @@
+# Plot live CHOP data into /plots/plot.png next to the .toe
+import os
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+PLOTS_DIR = os.path.join(project.folder, "plots")
+OUT_PATH  = os.path.join(PLOTS_DIR, "plot.png")
+
+def _channels(chop):
+    """Return a list of Channel objects robustly across TD builds."""
+    if chop is None: 
+        return []
+    # chans can be a property or a method depending on version
+    chans_attr = getattr(chop, "chans", None)
+    if chans_attr is not None:
+        return list(chans_attr() if callable(chans_attr) else chans_attr)
+    # fallbacks
+    try:
+        return [chop[i] for i in range(chop.numChans)]
+    except:
+        return []
+
+def _rate(chop):
+    """Return sample rate if available, else None."""
+    r = getattr(chop, "sampleRate", None)
+    if r is None:
+        r = getattr(chop, "rate", None)
+    return float(r) if r else None
+
+def make_plot():
+    src = op('source')  # <-- point this at your CHOP
+    if not src or src.numChans == 0 or src.numSamples == 0:
+        return
+
+    # X axis
+    r = _rate(src)
+    n = int(src.numSamples)
+    if r and r > 0:
+        x = np.arange(n) / r
+        x_label = "Time (s)"
+    else:
+        x = np.arange(n, dtype=float)
+        x_label = "Sample"
+
+    # Y data
+    ys, labels = [], []
+    for ch in _channels(src):
+        # ch.vals is a sequence in most builds; fallback if missing
+        vals = getattr(ch, "vals", None)
+        if vals is not None:
+            y = np.array(vals)
+        else:
+            y = np.array([ch[s] for s in range(n)])
+        ys.append(y)
+        labels.append(ch.name)
+
+    # Plot
+    plt.figure(figsize=(6, 3), dpi=100)
+    for y, label in zip(ys, labels):
+        plt.plot(x, y, label=label)
+    plt.xlabel(x_label)
+    plt.title("Live CHOP plot")
+    if len(ys) > 1:
+        plt.legend(loc="upper right", fontsize=8)
+    plt.tight_layout()
+
+    os.makedirs(PLOTS_DIR, exist_ok=True)
+    plt.savefig(OUT_PATH)
+    plt.close()
+
+    # Feed to Movie File In TOP named 'plot_in'
+    parent_comp = me.parent()
+    mfi = parent_comp.op('plot_in') or parent_comp.create(moviefileinTOP, 'plot_in')
+    mfi.par.file = OUT_PATH
+    mfi.par.reload.pulse()
+
+# allow manual run
+make_plot()
